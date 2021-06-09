@@ -564,28 +564,6 @@ void Misc::fixTabletSignal() noexcept
     }
 }
 
-void Misc::fakePrime() noexcept
-{
-    static bool lastState = false;
-
-    if (config->misc.fakePrime != lastState) {
-        lastState = config->misc.fakePrime;
-
-#ifdef _WIN32
-        if (DWORD oldProtect; VirtualProtect(memory->fakePrime, 1, PAGE_EXECUTE_READWRITE, &oldProtect)) {
-#else
-	if (const auto addressPageAligned = std::uintptr_t(memory->fakePrime) - std::uintptr_t(memory->fakePrime) % sysconf(_SC_PAGESIZE);
-	    mprotect((void*)addressPageAligned, 1, PROT_READ | PROT_WRITE | PROT_EXEC) == 0) {
-#endif
-            constexpr uint8_t patch[]{ 0x74, 0xEB };
-            *memory->fakePrime = patch[config->misc.fakePrime];
-#ifdef _WIN32
-            VirtualProtect(memory->fakePrime, 1, oldProtect, nullptr);
-#endif
-        }
-    }
-}
-
 void Misc::killMessage(GameEvent& event) noexcept
 {
     if (!config->misc.killMessage)
@@ -1117,23 +1095,6 @@ void Misc::autoAccept(const char* soundEntry) noexcept
     FlashWindowEx(&flash);
     ShowWindow(window, SW_RESTORE);
 #endif
-}
-
-void Misc::deathmatchGod() noexcept
-{
-    if (!config->misc.deathmatchGod || !localPlayer->isAlive() || !localPlayer->gunGameImmunity())
-        return;
-
-    static auto gameType{ interfaces->cvar->findVar("game_type") };
-    static auto gameMode{ interfaces->cvar->findVar("game_mode") };
-    if (gameType->getInt() != 1 || gameMode->getInt() != 2)
-        return;
-
-    static auto nextTime = 0.0f;
-    if (nextTime <= memory->globalVars->realtime) {
-        interfaces->engine->clientCmdUnrestricted("open_buymenu");
-        nextTime = memory->globalVars->realtime + 0.25f;
-    }
 }
 
 void Misc::updateEventListeners(bool forceRemove) noexcept
